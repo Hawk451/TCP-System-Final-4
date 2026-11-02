@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkyForce Aviation — Premier Aircraft Sales & Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ═══ NAVIGATION ══════════════════════════════════════════════════════════ -->
+<nav class="nav" id="nav">
+    <div class="nav__logo">
+        <span class="nav__logo-icon">✈</span>
+        <span class="nav__logo-text">SKYFORCE</span>
+        <span class="nav__logo-sub">AVIATION</span>
+    </div>
+    <ul class="nav__links">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#fleet">Fleet</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact" class="nav__cta">Contact Us</a></li>
+    </ul>
+    <button class="nav__hamburger" id="hamburger" onclick="toggleMenu()">☰</button>
+</nav>
+
+<!-- ═══ HERO ═════════════════════════════════════════════════════════════════ -->
+<section class="hero" id="home">
+    <div class="hero__bg">
+        <div class="hero__grid"></div>
+    </div>
+    <div class="hero__content">
+        <div class="hero__tag">EST. 2008 · JOHANNESBURG, SOUTH AFRICA</div>
+        <h1 class="hero__title">
+            <span class="hero__title-line">THE SKY</span>
+            <span class="hero__title-line hero__title-line--accent">IS YOURS.</span>
+        </h1>
+        <p class="hero__desc">
+            South Africa's leading aircraft sales and aviation services company.
+            From light sport aircraft to business jets — we put you in the air.
+        </p>
+        <div class="hero__actions">
+            <a href="#fleet" class="btn btn--primary">Browse Fleet</a>
+            <a href="#contact" class="btn btn--ghost">Get a Quote</a>
+        </div>
+        <div class="hero__stats">
+            <div class="hero__stat"><span class="hero__stat-num">200+</span><span class="hero__stat-label">Aircraft Sold</span></div>
+            <div class="hero__stat"><span class="hero__stat-num">15+</span><span class="hero__stat-label">Years Experience</span></div>
+            <div class="hero__stat"><span class="hero__stat-num">50+</span><span class="hero__stat-label">Aircraft in Stock</span></div>
+        </div>
+    </div>
+    <div class="hero__plane">✈</div>
+</section>
+
+<!-- ═══ FLEET ═════════════════════════════════════════════════════════════════ -->
+<section class="section" id="fleet">
+    <div class="container">
+        <div class="section__header">
+            <div class="section__tag">Our Fleet</div>
+            <h2 class="section__title">Aircraft For Sale</h2>
+            <p class="section__desc">Carefully inspected, fully documented, ready to fly.</p>
+        </div>
+
+        <div class="fleet-tabs">
+            <button class="fleet-tab active" onclick="filterFleet('all', this)">All Aircraft</button>
+            <button class="fleet-tab" onclick="filterFleet('light', this)">Light Sport</button>
+            <button class="fleet-tab" onclick="filterFleet('trainer', this)">Trainers</button>
+            <button class="fleet-tab" onclick="filterFleet('business', this)">Business Jets</button>
+            <button class="fleet-tab" onclick="filterFleet('helicopter', this)">Helicopters</button>
+        </div>
+
+        <div class="fleet-grid" id="fleetGrid">
+
+            <div class="aircraft-card" data-type="light">
+                <div class="aircraft-card__badge">Available</div>
+                <div class="aircraft-card__visual">🛩️</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Light Sport Aircraft</div>
+                    <h3 class="aircraft-card__name">Cessna 172 Skyhawk</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2019</span>
+                        <span>⏱ 1,200 hrs TT</span>
+                        <span>🌍 4 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">The world's most popular training aircraft. Excellent condition, full avionics suite, ideal for new pilots.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 1,850,000</div>
+                        <a href="#contact" class="btn btn--sm">Enquire</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="aircraft-card" data-type="light">
+                <div class="aircraft-card__badge aircraft-card__badge--sold">Sold</div>
+                <div class="aircraft-card__visual">🛩️</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Light Sport Aircraft</div>
+                    <h3 class="aircraft-card__name">Piper PA-28 Cherokee</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2017</span>
+                        <span>⏱ 980 hrs TT</span>
+                        <span>🌍 4 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">Low-wing classic with excellent handling. Recently overhauled engine, new paint and interior.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 1,450,000</div>
+                        <a href="#contact" class="btn btn--sm btn--disabled">Sold</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="aircraft-card" data-type="trainer">
+                <div class="aircraft-card__badge">Available</div>
+                <div class="aircraft-card__visual">✈️</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Trainer</div>
+                    <h3 class="aircraft-card__name">Diamond DA40</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2021</span>
+                        <span>⏱ 620 hrs TT</span>
+                        <span>🌍 4 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">Modern composite trainer with glass cockpit. Perfect for ab-initio through to commercial training.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 3,200,000</div>
+                        <a href="#contact" class="btn btn--sm">Enquire</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="aircraft-card" data-type="business">
+                <div class="aircraft-card__badge">Available</div>
+                <div class="aircraft-card__visual">🛫</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Business Jet</div>
+                    <h3 class="aircraft-card__name">Cessna Citation CJ3+</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2020</span>
+                        <span>⏱ 1,800 hrs TT</span>
+                        <span>🌍 7 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">Light business jet with intercontinental range. Fully equipped cabin, WiFi, satellite communications.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 42,000,000</div>
+                        <a href="#contact" class="btn btn--sm">Enquire</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="aircraft-card" data-type="business">
+                <div class="aircraft-card__badge">Available</div>
+                <div class="aircraft-card__visual">🛫</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Business Jet</div>
+                    <h3 class="aircraft-card__name">Embraer Phenom 300E</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2022</span>
+                        <span>⏱ 450 hrs TT</span>
+                        <span>🌍 9 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">World's best-selling light jet for 10 consecutive years. Near-new condition, full warranty remaining.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 68,000,000</div>
+                        <a href="#contact" class="btn btn--sm">Enquire</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="aircraft-card" data-type="helicopter">
+                <div class="aircraft-card__badge">Available</div>
+                <div class="aircraft-card__visual">🚁</div>
+                <div class="aircraft-card__body">
+                    <div class="aircraft-card__type">Helicopter</div>
+                    <h3 class="aircraft-card__name">Robinson R44 Raven II</h3>
+                    <div class="aircraft-card__specs">
+                        <span>📅 2020</span>
+                        <span>⏱ 750 hrs TT</span>
+                        <span>🌍 4 Seats</span>
+                    </div>
+                    <p class="aircraft-card__desc">South Africa's most popular helicopter. Fuel injected engine, excellent for game viewing, training and touring.</p>
+                    <div class="aircraft-card__footer">
+                        <div class="aircraft-card__price">R 4,800,000</div>
+                        <a href="#contact" class="btn btn--sm">Enquire</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SERVICES ══════════════════════════════════════════════════════════════ -->
+<section class="section section--dark" id="services">
+    <div class="container">
+        <div class="section__header">
+            <div class="section__tag">What We Do</div>
+            <h2 class="section__title">Our Services</h2>
+            <p class="section__desc">End-to-end aviation solutions for private owners, flight schools, and corporate clients.</p>
+        </div>
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-card__icon">🛒</div>
+                <h3 class="service-card__title">Aircraft Sales</h3>
+                <p class="service-card__desc">New and pre-owned aircraft from leading manufacturers. Full import and registration assistance included.</p>
+            </div>
+            <div class="service-card">
+                <div class="service-card__icon">🔧</div>
+                <h3 class="service-card__title">Maintenance & MRO</h3>
+                <p class="service-card__desc">SACAA-approved maintenance facility. Scheduled maintenance, avionics upgrades, paint and interior refurbishment.</p>
+            </div>
+            <div class="service-card">
+                <div class="service-card__icon">📋</div>
+                <h3 class="service-card__title">Aircraft Financing</h3>
+                <p class="service-card__desc">Competitive financing packages through our banking partners. Private, commercial and fleet financing available.</p>
+            </div>
+            <div class="service-card">
+                <div class="service-card__icon">🌍</div>
+                <h3 class="service-card__title">Charter & Rental</h3>
+                <p class="service-card__desc">Wet and dry leasing options for corporate travel. SACAA-certified charter operations across Southern Africa.</p>
+            </div>
+            <div class="service-card">
+                <div class="service-card__icon">🎓</div>
+                <h3 class="service-card__title">Flight Training</h3>
+                <p class="service-card__desc">PPL, CPL and instrument rating courses. SACAA-approved training with experienced instructors.</p>
+            </div>
+            <div class="service-card">
+                <div class="service-card__icon">📦</div>
+                <h3 class="service-card__title">Parts & Spares</h3>
+                <p class="service-card__desc">Authorised distributor for Cessna, Piper and Diamond parts. Same-day dispatch for in-stock items.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ ABOUT ══════════════════════════════════════════════════════════════════ -->
+<section class="section" id="about">
+    <div class="container">
+        <div class="about-layout">
+            <div class="about__content">
+                <div class="section__tag">About SkyForce</div>
+                <h2 class="section__title">Flying South Africa Forward</h2>
+                <p class="about__text">
+                    Founded in 2008, SkyForce Aviation has grown from a small Rand Airport operation
+                    into South Africa's most trusted aircraft sales and services company. We are based
+                    at Lanseria International Airport, Johannesburg, with service centres in Cape Town
+                    and Durban.
+                </p>
+                <p class="about__text">
+                    Our team of 45 aviation professionals includes SACAA-licensed engineers, commercial
+                    pilots, and finance specialists — all committed to putting more South Africans in
+                    the air safely and affordably.
+                </p>
+                <div class="about__certs">
+                    <div class="cert">✅ SACAA Approved</div>
+                    <div class="cert">✅ IATA Member</div>
+                    <div class="cert">✅ ISO 9001:2015</div>
+                    <div class="cert">✅ BARSA Member</div>
+                </div>
+            </div>
+            <div class="about__visual">
+                <div class="about__card">
+                    <div class="about__card-icon">📍</div>
+                    <div class="about__card-text">
+                        <strong>Head Office</strong>
+                        Lanseria International Airport<br>
+                        Hangar 14, North Apron<br>
+                        Johannesburg, Gauteng
+                    </div>
+                </div>
+                <div class="about__card">
+                    <div class="about__card-icon">🕐</div>
+                    <div class="about__card-text">
+                        <strong>Operating Hours</strong>
+                        Monday – Friday: 07:00 – 17:00<br>
+                        Saturday: 08:00 – 13:00<br>
+                        Sunday: By appointment
+                    </div>
+                </div>
+                <div class="about__card">
+                    <div class="about__card-icon">🛡️</div>
+                    <div class="about__card-text">
+                        <strong>Our Promise</strong>
+                        Every aircraft we sell is fully inspected,
+                        documented and airworthy certified before
+                        handover. No exceptions.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CONTACT ════════════════════════════════════════════════════════════════ -->
+<section class="section section--dark" id="contact">
+    <div class="container">
+        <div class="section__header">
+            <div class="section__tag">Get In Touch</div>
+            <h2 class="section__title">Contact Us</h2>
+            <p class="section__desc">Ready to find your aircraft? Our team is standing by.</p>
+        </div>
+        <div class="contact-layout">
+            <div class="contact__info">
+                <div class="contact-item">
+                    <div class="contact-item__icon">📞</div>
+                    <div>
+                        <div class="contact-item__label">Phone</div>
+                        <div class="contact-item__value">+27 11 659 2800</div>
+                        <div class="contact-item__value">+27 82 445 7700 (24hr)</div>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-item__icon">📧</div>
+                    <div>
+                        <div class="contact-item__label">Email</div>
+                        <div class="contact-item__value">sales@skyforce.co.za</div>
+                        <div class="contact-item__value">service@skyforce.co.za</div>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-item__icon">📍</div>
+                    <div>
+                        <div class="contact-item__label">Address</div>
+                        <div class="contact-item__value">Hangar 14, Lanseria International Airport</div>
+                        <div class="contact-item__value">Johannesburg, 1748</div>
+                    </div>
+                </div>
+            </div>
+
+            <form class="contact-form" onsubmit="handleSubmit(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" placeholder="John Smith" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" placeholder="john@example.com" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" placeholder="+27 82 000 0000" />
+                </div>
+                <div class="form-group">
+                    <label>I am interested in...</label>
+                    <select>
+                        <option>Aircraft Purchase</option>
+                        <option>Aircraft Financing</option>
+                        <option>Maintenance / MRO</option>
+                        <option>Charter / Rental</option>
+                        <option>Flight Training</option>
+                        <option>Parts & Spares</option>
+                        <option>General Enquiry</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea rows="4" placeholder="Tell us what you're looking for..."></textarea>
+                </div>
+                <button type="submit" class="btn btn--primary btn--full">Send Enquiry ✈</button>
+                <div class="form-success hidden" id="formSuccess">
+                    ✅ Thank you! We will be in touch within 24 hours.
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ FOOTER ════════════════════════════════════════════════════════════════ -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer__grid">
+            <div class="footer__brand">
+                <div class="footer__logo">✈ SKYFORCE AVIATION</div>
+                <p>South Africa's premier aircraft sales and aviation services company since 2008.</p>
+            </div>
+            <div class="footer__col">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#fleet">Fleet</a></li>
+                    <li><a href="#services">Services</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer__col">
+                <h4>Aircraft Types</h4>
+                <ul>
+                    <li><a href="#fleet">Light Sport Aircraft</a></li>
+                    <li><a href="#fleet">Trainers</a></li>
+                    <li><a href="#fleet">Business Jets</a></li>
+                    <li><a href="#fleet">Helicopters</a></li>
+                    <li><a href="#fleet">Turboprops</a></li>
+                </ul>
+            </div>
+            <div class="footer__col">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Sale</a></li>
+                    <li><a href="#">POPIA Compliance</a></li>
+                    <li><a href="#">SACAA Licence</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer__bottom">
+            <p>© 2026 SkyForce Aviation (Pty) Ltd · Reg No. 2008/012345/07 · SACAA AOC: ZA-2008-001</p>
+            <p style="margin-top:6px;font-size:11px;color:#555;">
+                🔬 <em>This is a test website for the TCP Ping Detection System — IT Project 700, Richfield Graduate Institute of Technology</em>
+            </p>
+        </div>
+    </div>
+</footer>
+
+<script src="js/site.js"></script>
+</body>
+</html>

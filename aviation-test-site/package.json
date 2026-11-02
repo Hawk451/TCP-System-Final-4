@@ -1,0 +1,12 @@
+{
+  "name": "aviation-test-site",
+  "version": "1.0.0",
+  "description": "SkyForce Aviation - Test website for TCP Ping Detection System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
