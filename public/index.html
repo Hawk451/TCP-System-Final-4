@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TCP Detection — Unique SSL Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css" />
+<script>
+// Auth check — redirect to login if not authenticated
+(async function() {
+    const token = localStorage.getItem('adminToken');
+    if (!token) { window.location.href = '/login'; return; }
+    const res = await fetch('/api/session', { headers: { 'x-auth-token': token } });
+    const data = await res.json();
+    if (!data.valid) { localStorage.removeItem('adminToken'); window.location.href = '/login'; return; }
+    localStorage.setItem('adminRole', data.role || 'admin');
+    const showUser = () => {
+        const el = document.getElementById('adminUsername');
+        if (el) el.textContent = (data.role === 'superadmin' ? '👑 ' : '👤 ') + data.username;
+        applyRoleRestrictions(data.role);
+    };
+    // The session check is async, so the page may already have loaded by the time it
+    // returns — in that case DOMContentLoaded has already fired and would never run.
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showUser);
+    else showUser();
+})().catch(() => { window.location.href = '/login'; });
+
+function applyRoleRestrictions(role) {
+    if (role !== 'superadmin') {
+        // Hide super-admin-only sections in the Admin tab
+        document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
+    }
+}
+
+// Inactivity timeout — 3 minutes
+let inactivityTimer;
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(async () => {
+        const token = localStorage.getItem('adminToken');
+        if (token) await fetch('/api/logout', { method: 'POST', headers: { 'x-auth-token': token } });
+        localStorage.removeItem('adminToken');
+        alert('You have been logged out due to inactivity.');
+        window.location.href = '/login';
+    }, 3 * 60 * 1000);
+}
+['mousemove','keydown','click','scroll','touchstart'].forEach(e => document.addEventListener(e, resetInactivityTimer));
+resetInactivityTimer();
+
+async function logout() {
+    const token = localStorage.getItem('adminToken');
+    if (token) await fetch('/api/logout', { method: 'POST', headers: { 'x-auth-token': token } });
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login';
+}
+</script>
+</head>
+<body>
+
+<header class="header">
+    <div class="header__left">
+        <div class="header__icon">🛡️</div>
+        <div>
+            <h1 class="header__title">TCP Ping Detection System</h1>
+            <p class="header__sub">IT Project 700 — Richfield — Unique Semi-Supervised Learning</p>
+        </div>
+    </div>
+    <div class="header__right">
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+        <div style="margin-left:16px; display:flex; align-items:center; gap:10px;">
+            <span id="adminUsername" style="color:#8b949e; font-size:13px;"></span>
+            <button onclick="logout()" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:13px;">Logout</button>
+        </div>
+    </div>
+</header>
+
+<div class="alert-banner hidden" id="alertBanner">
+    <span id="alertBannerIcon">⚠️</span>
+    <span id="alertBannerText">Alert detected</span>
+    <button class="alert-banner__close" onclick="closeBanner()">✕</button>
+</div>
+
+<main class="main">
+
+    <section class="stats-grid">
+        <div class="stat-card stat-card--blue">
+            <div class="stat-card__label">Total Pings</div>
+            <div class="stat-card__value" id="statTotal">0</div>
+            <div class="stat-card__sub">All time</div>
+        </div>
+        <div class="stat-card stat-card--green">
+            <div class="stat-card__label">Normal</div>
+            <div class="stat-card__value" id="statNormal">0</div>
+            <div class="stat-card__sub">Safe traffic</div>
+        </div>
+        <div class="stat-card stat-card--orange">
+            <div class="stat-card__label">Suspicious</div>
+            <div class="stat-card__value" id="statSuspicious">0</div>
+            <div class="stat-card__sub">Flagged</div>
+        </div>
+        <div class="stat-card stat-card--red">
+            <div class="stat-card__label">Malicious</div>
+            <div class="stat-card__value" id="statMalicious">0</div>
+            <div class="stat-card__sub">Blocked</div>
+        </div>
+        <div class="stat-card stat-card--purple">
+            <div class="stat-card__label">Blocked IPs</div>
+            <div class="stat-card__value" id="statBlocked">0</div>
+            <div class="stat-card__sub">Currently blocked</div>
+        </div>
+        <div class="stat-card stat-card--yellow">
+            <div class="stat-card__label">Trusted IPs</div>
+            <div class="stat-card__value" id="statTrusted">0</div>
+            <div class="stat-card__sub">High reputation</div>
+        </div>
+        <div class="stat-card stat-card--teal">
+            <div class="stat-card__label">Bots Detected</div>
+            <div class="stat-card__value" id="statBots">0</div>
+            <div class="stat-card__sub">Rhythm detection</div>
+        </div>
+        <div class="stat-card stat-card--pink">
+            <div class="stat-card__label">Countries</div>
+            <div class="stat-card__value" id="statCountries">0</div>
+            <div class="stat-card__sub">Geo learning</div>
+        </div>
+        <div class="stat-card stat-card--indigo">
+            <div class="stat-card__label">DNA Prints</div>
+            <div class="stat-card__value" id="statDNA">0</div>
+            <div class="stat-card__sub">Fingerprints</div>
+        </div>
+        <div class="stat-card stat-card--lime">
+            <div class="stat-card__label">Auto Threshold</div>
+            <div class="stat-card__value" id="statThreshold">10</div>
+            <div class="stat-card__sub">Self-learned</div>
+        </div>
+        <div class="stat-card stat-card--red">
+            <div class="stat-card__label">Ghost Clusters</div>
+            <div class="stat-card__value" id="statGhostClusters">0</div>
+            <div class="stat-card__sub">IP-hopping blocked</div>
+        </div>
+    </section>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('pings',this)">📡 Live Pings</button>
+        <button class="tab" onclick="showTab('alerts',this)">🚨 Alerts</button>
+        <button class="tab" onclick="showTab('blocked',this)">🚫 Blocked IPs</button>
+        <button class="tab" onclick="showTab('reputation',this)">⭐ IP Reputation</button>
+        <button class="tab" onclick="showTab('geo',this)">🌍 Geography</button>
+        <button class="tab" onclick="showTab('dna',this)">🧬 DNA Prints</button>
+        <button class="tab" onclick="showTab('learning',this)">🧠 Learning</button>
+        <button class="tab" onclick="showTab('webmonitor',this)">🌐 Web Monitor</button>
+        <button class="tab" onclick="showTab('ghost',this);loadGhostClusters()">👻 Ghost IPs</button>
+        <button class="tab" onclick="showTab('reports',this);loadReportData()">📄 Reports</button>
+        <button class="tab" onclick="showTab('integration',this)">🔧 Integration Guide</button>
+        <button class="tab" onclick="showTab('admin',this);loadAdminPanel()">⚙️ Admin</button>
+    </div>
+
+    <!-- Pings Tab -->
+    <div class="tab-content active" id="tab-pings">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">📡 Live Ping Feed</h2>
+                <select class="filter-select" id="filterClass" onchange="applyFilter()">
+                    <option value="">All</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="SUSPICIOUS">Suspicious</option>
+                    <option value="MALICIOUS">Malicious</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>IP</th>
+                            <th>Time</th>
+                            <th>Class</th>
+                            <th>Country</th>
+                            <th>Reputation</th>
+                            <th>Bot</th>
+                            <th>DNA Match</th>
+                            <th>Trust Boost</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pingTable">
+                        <tr><td colspan="9" class="empty">Waiting for pings...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Tab -->
+    <div class="tab-content hidden" id="tab-alerts">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">🚨 Alerts</h2>
+                <button class="btn" onclick="markAllRead()">Mark all read</button>
+            </div>
+            <div class="alert-list" id="alertList">
+                <p class="empty">No alerts yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blocked IPs Tab -->
+    <div class="tab-content hidden" id="tab-blocked">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">🚫 Blocked IPs</h2>
+            </div>
+            <div class="blocked-list" id="blockedList">
+                <p class="empty">No blocked IPs.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- IP Reputation Tab -->
+    <div class="tab-content hidden" id="tab-reputation">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">⭐ IP Reputation Scores</h2>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>IP</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Country</th>
+                            <th>Total</th>
+                            <th>Normal</th>
+                            <th>Suspicious</th>
+                            <th>Malicious</th>
+                            <th>Trust Boost</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reputationTable">
+                        <tr><td colspan="10" class="empty">No data yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geography Tab -->
+    <div class="tab-content hidden" id="tab-geo">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">🌍 Geographic Behaviour Learning</h2>
+                <span style="font-size:12px;color:#8892a4">Learns YOUR specific visitor geography</span>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Country</th>
+                            <th>Visits</th>
+                            <th>Risk Score</th>
+                            <th>Status</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="geoTable">
+                        <tr><td colspan="6" class="empty">Learning geography...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- DNA Fingerprints Tab -->
+    <div class="tab-content hidden" id="tab-dna">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">🧬 IP DNA Fingerprints</h2>
+                <span style="font-size:12px;color:#8892a4">Unique multi-signal behaviour fingerprints</span>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fingerprint</th>
+                            <th>First IP</th>
+                            <th>Label</th>
+                            <th>Matches</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dnaTable">
+                        <tr><td colspan="6" class="empty">Building fingerprints...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning Tab -->
+    <div class="tab-content hidden" id="tab-learning">
+        <div class="learning-grid">
+            <div class="panel">
+                <div class="panel__header">
+                    <h2 class="panel__title">🧠 Self-Learning Threshold</h2>
+                </div>
+                <div class="learning-content">
+                    <div class="learning-stat">
+                        <div class="learning-stat__label">Suspicious Threshold</div>
+                        <div class="learning-stat__value" id="learnThreshold">10</div>
+                        <div class="learning-stat__sub">Auto-adjusted per hour</div>
+                    </div>
+                    <div class="learning-stat">
+                        <div class="learning-stat__label">Malicious Threshold</div>
+                        <div class="learning-stat__value red" id="learnMalicious">20</div>
+                        <div class="learning-stat__sub">2x suspicious threshold</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel__header">
+                    <h2 class="panel__title">📈 Traffic Pattern Learning</h2>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Hour</th>
+                                <th>Avg Pings</th>
+                                <th>Max</th>
+                                <th>Threshold</th>
+                                <th>Top Countries</th>
+                                <th>Samples</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patternTable">
+                            <tr><td colspan="6" class="empty">Learning...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel__header">
+                    <h2 class="panel__title">🔵 IP Clustering</h2>
+                </div>
+                <div class="breakdown-grid">
+                    <div class="breakdown-item">
+                        <div class="breakdown-item__label">Cluster 0 — Normal</div>
+                        <div class="breakdown-item__count green" id="clusterNormal">0</div>
+                        <div class="breakdown-item__bar"><div class="breakdown-item__fill green" id="clusterNormalBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-item__label">Cluster 1 — Suspicious</div>
+                        <div class="breakdown-item__count orange" id="clusterSuspicious">0</div>
+                        <div class="breakdown-item__bar"><div class="breakdown-item__fill orange" id="clusterSuspiciousBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-item__label">Cluster 2 — Malicious</div>
+                        <div class="breakdown-item__count red" id="clusterMalicious">0</div>
+                        <div class="breakdown-item__bar"><div class="breakdown-item__fill red" id="clusterMaliciousBar" style="width:0%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Monitor Tab -->
+    <div class="tab-content hidden" id="tab-webmonitor">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">🌐 Real Website Monitor</h2>
+                <span style="font-size:12px;color:#8b949e">Proxy any real website through your TCP detection system</span>
+            </div>
+            <div style="padding:24px;">
+
+                <!-- Current monitored URL -->
+                <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:20px;margin-bottom:20px;">
+                    <div style="color:#8b949e;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Currently Monitoring</div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="color:#3fb950;font-size:18px;">●</span>
+                        <span id="currentMonitoredURL" style="color:#58a6ff;font-size:16px;font-weight:600;">Loading...</span>
+                        <a id="openProxyLink" href="http://localhost:8082" target="_blank"
+                           style="margin-left:auto;background:#1f6feb;color:#fff;text-decoration:none;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;">
+                            Open Monitored Site →
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Drag & Drop / Type URL box -->
+                <div id="urlDropZone"
+                     style="border:2px dashed #30363d;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:20px;"
+                     ondragover="event.preventDefault();this.style.borderColor='#58a6ff';this.style.background='#161b22';"
+                     ondragleave="this.style.borderColor='#30363d';this.style.background='transparent';"
+                     ondrop="handleURLDrop(event)">
+                    <div style="font-size:32px;margin-bottom:10px;">🔗</div>
+                    <div style="color:#c9d1d9;font-size:15px;font-weight:600;margin-bottom:6px;">Drag a URL here to monitor it</div>
+                    <div style="color:#8b949e;font-size:13px;">or type a website address below</div>
+                </div>
+
+                <!-- Manual URL input -->
+                <div style="display:flex;gap:10px;margin-bottom:20px;">
+                    <input type="text" id="urlInput" placeholder="e.g. richfield.ac.za or https://www.example.com"
+                           style="flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;"
+                           onfocus="this.style.borderColor='#58a6ff'" onblur="this.style.borderColor='#30363d'"
+                           onkeydown="if(event.key==='Enter')setMonitoredURL()" />
+                    <button onclick="setMonitoredURL()"
+                            style="background:#1f6feb;color:#fff;border:none;border-radius:6px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;">
+                        Monitor This Site
+                    </button>
+                </div>
+
+                <!-- Quick presets -->
+                <div style="margin-bottom:20px;">
+                    <div style="color:#8b949e;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Quick Presets</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button onclick="quickSetURL('https://www.richfield.ac.za')" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">🏫 Richfield</button>
+                        <button onclick="quickSetURL('https://www.google.com')" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">🔍 Google</button>
+                        <button onclick="quickSetURL('https://www.wikipedia.org')" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">📖 Wikipedia</button>
+                        <button onclick="quickSetURL('https://www.github.com')" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">🐙 GitHub</button>
+                    </div>
+                </div>
+
+                <!-- Status message -->
+                <div id="proxyStatus" style="display:none;padding:12px 16px;border-radius:8px;font-size:14px;"></div>
+
+                <!-- Info box -->
+                <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-top:16px;">
+                    <div style="color:#8b949e;font-size:13px;line-height:1.8;">
+                        <strong style="color:#c9d1d9;">How it works:</strong><br>
+                        1. Select a website to monitor above<br>
+                        2. Open <strong style="color:#58a6ff;">http://localhost:8082</strong> in your browser — it loads the real website through your TCP system<br>
+                        3. Every visit generates a TCP ping — logged to MongoDB and shown live on this dashboard<br>
+                        4. If your IP gets blocked, the 403 page appears instead of the website
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ghost IPs Tab -->
+    <div class="tab-content hidden" id="tab-ghost">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">👻 Ghost IP Clusters</h2>
+                <span style="font-size:12px;color:#8b949e">IPs linked by shared browser fingerprint or subnet — detected IP-hopping evasion</span>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Cluster ID</th>
+                            <th>Linked IPs</th>
+                            <th>IP Count</th>
+                            <th>Country</th>
+                            <th>Status</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <th>Reason</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ghostTable">
+                        <tr><td colspan="9" class="empty">No ghost IP clusters detected yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div class="tab-content hidden" id="tab-reports">
+        <div class="panel">
+            <div class="panel__header">
+                <h2 class="panel__title">📄 Security Reports</h2>
+                <span style="font-size:12px;color:#8b949e">Generate and print reports from live MongoDB data</span>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+                <button onclick="printReport('traffic')" style="background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">📊 Traffic Summary</button>
+                <button onclick="printReport('blocked')" style="background:#da3633;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">🚫 Blocked IPs Report</button>
+                <button onclick="printReport('ghost')" style="background:#6e40c9;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">👻 Ghost Clusters Report</button>
+                <button onclick="printReport('security')" style="background:#238636;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">🛡️ Full Security Report</button>
+                <button onclick="printReport('all')" style="background:#f0883e;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">🖨️ Print All Reports</button>
+            </div>
+            <div id="reportPreview" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:24px;min-height:200px;color:#8b949e;font-size:14px;text-align:center;line-height:2;">
+                Select a report above to preview it before printing.
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Integration Guide Tab ── -->
+    <div class="tab-content hidden" id="tab-integration">
+        <div class="panel" style="margin-bottom:20px;">
+            <div class="panel__header">
+                <h2 class="panel__title">🔧 Website Integration Guide</h2>
+                <span style="font-size:12px;color:#8b949e">How to connect your company website to this TCP Detection System</span>
+            </div>
+            <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:24px;font-size:14px;line-height:1.8;color:#c9d1d9;">
+
+                <!-- Overview -->
+                <div style="background:#161b22;border:1px solid #1f6feb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+                    <div style="color:#58a6ff;font-size:15px;font-weight:700;margin-bottom:6px;">📋 How It Works</div>
+                    <div style="color:#c9d1d9;font-size:13px;line-height:1.8;">
+                        This TCP Detection System sits between the internet and your website. Every visitor that connects to your website is automatically routed through the TCP server first.
+                        The system checks if the IP is blocked, suspicious or malicious — and either allows them through or redirects them to a blocked page.
+                        All traffic is logged, monitored and analysed in real time on this dashboard.
+                    </div>
+                </div>
+
+                <!-- Step 1 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">1</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Install Node.js on Your Server</div>
+                        <div style="color:#8b949e;font-size:13px;">Download and install Node.js (v18 or higher) on the server where your website will run.<br>
+                        Download from: <span style="color:#3fb950;">https://nodejs.org</span></div>
+                        <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;margin-top:8px;font-family:monospace;font-size:12px;color:#79c0ff;">node --version &nbsp;&nbsp;# Should show v18 or higher</div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">2</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Install MongoDB</div>
+                        <div style="color:#8b949e;font-size:13px;">The system stores all ping data, blocked IPs, reputation scores and learning data in MongoDB.<br>
+                        Download from: <span style="color:#3fb950;">https://www.mongodb.com/try/download/community</span><br>
+                        Make sure MongoDB is running on <span style="color:#f0883e;">port 27017</span> (the default).</div>
+                        <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;margin-top:8px;font-family:monospace;font-size:12px;color:#79c0ff;">mongod --version &nbsp;&nbsp;# Confirm MongoDB is installed</div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">3</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Copy the TCP System Files to Your Server</div>
+                        <div style="color:#8b949e;font-size:13px;">Copy the entire <span style="color:#f0883e;">tcp-advanced</span> folder to your server. This contains <span style="color:#f0883e;">index.js</span> (the main system), the dashboard, and all dependencies.</div>
+                        <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;margin-top:8px;font-family:monospace;font-size:12px;color:#79c0ff;">
+                            cd tcp-advanced<br>
+                            npm install &nbsp;&nbsp;# Install all required packages
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">4</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Place Your Website Files in the aviation-test-site Folder</div>
+                        <div style="color:#8b949e;font-size:13px;">Replace the contents of the <span style="color:#f0883e;">aviation-test-site</span> folder with your own company website files (HTML, CSS, JS, images). Your website's main page must be named <span style="color:#f0883e;">index.html</span>.<br><br>
+                        The TCP system will automatically serve your website on <span style="color:#f0883e;">port 8080</span> and protect it — no changes to your website code are needed.</div>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">5</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Start the TCP Detection System</div>
+                        <div style="color:#8b949e;font-size:13px;">Run the main system from the tcp-advanced folder. This starts all three servers at once.</div>
+                        <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;margin-top:8px;font-family:monospace;font-size:12px;color:#79c0ff;">node index.js</div>
+                        <div style="margin-top:10px;font-size:13px;color:#8b949e;">This starts:<br>
+                        &nbsp;• <span style="color:#3fb950;">TCP Listener</span> on port 9000 — monitors all incoming connections<br>
+                        &nbsp;• <span style="color:#58a6ff;">Dashboard</span> on port 3000 — your admin control panel<br>
+                        &nbsp;• <span style="color:#f0883e;">Your Website</span> on port 8080 — protected and monitored</div>
+                    </div>
+                </div>
+
+                <!-- Step 6 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">6</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Log Into the Dashboard and Create Your Admin Accounts</div>
+                        <div style="color:#8b949e;font-size:13px;">Open your browser and go to <span style="color:#f0883e;">http://localhost:3000</span> (or your server's IP address on port 3000).<br>
+                        Log in with the default credentials:<br>
+                        &nbsp;• Username: <span style="color:#3fb950;">admin</span><br>
+                        &nbsp;• Password: <span style="color:#3fb950;">richfield2026</span><br><br>
+                        Then go to the <span style="color:#f0883e;">⚙️ Admin</span> tab, change the default password immediately, and add your own admin accounts.</div>
+                    </div>
+                </div>
+
+                <!-- Step 7 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#1f6feb;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">7</div>
+                    <div>
+                        <div style="color:#58a6ff;font-size:14px;font-weight:700;margin-bottom:4px;">Point Your Domain to Port 8080</div>
+                        <div style="color:#8b949e;font-size:13px;">If you have a domain name (e.g. <span style="color:#f0883e;">www.yourcompany.co.za</span>), configure your web server (Nginx or Apache) to forward traffic from port 80/443 to port 8080 where your protected website runs.<br><br>
+                        Example Nginx config:</div>
+                        <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;margin-top:8px;font-family:monospace;font-size:12px;color:#79c0ff;">
+                            server {<br>
+                            &nbsp;&nbsp;listen 80;<br>
+                            &nbsp;&nbsp;server_name www.yourcompany.co.za;<br>
+                            &nbsp;&nbsp;location / {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;proxy_pass http://127.0.0.1:8080;<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;proxy_set_header X-Forwarded-For $remote_addr;<br>
+                            &nbsp;&nbsp;}<br>
+                            }
+                        </div>
+                        <div style="margin-top:8px;font-size:12px;color:#8b949e;">⚠️ The <span style="color:#f0883e;">proxy_set_header X-Forwarded-For</span> line is important — it makes sure the TCP system sees the real visitor IP address, not the proxy IP.</div>
+                    </div>
+                </div>
+
+                <!-- Step 8 -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;align-items:flex-start;">
+                    <div style="background:#238636;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">8</div>
+                    <div>
+                        <div style="color:#3fb950;font-size:14px;font-weight:700;margin-bottom:4px;">✅ Your Website is Now Protected</div>
+                        <div style="color:#8b949e;font-size:13px;">Once running, the TCP system will automatically:<br>
+                        &nbsp;• <span style="color:#c9d1d9;">Block malicious IPs</span> before they reach your website<br>
+                        &nbsp;• <span style="color:#c9d1d9;">Detect ghost IPs</span> (attackers switching IP addresses)<br>
+                        &nbsp;• <span style="color:#c9d1d9;">Learn normal traffic patterns</span> and alert on anomalies<br>
+                        &nbsp;• <span style="color:#c9d1d9;">Show live alerts</span> when suspicious activity is detected<br>
+                        &nbsp;• <span style="color:#c9d1d9;">Build IP reputation scores</span> over time<br><br>
+                        Monitor everything from this dashboard in real time.</div>
+                    </div>
+                </div>
+
+                <!-- Port Reference -->
+                <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px 20px;margin-top:8px;">
+                    <div style="color:#f0883e;font-size:13px;font-weight:700;margin-bottom:10px;">📌 Port Reference</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <tr style="border-bottom:1px solid #30363d;">
+                            <td style="padding:8px 12px;color:#58a6ff;font-weight:600;">Port 9000</td>
+                            <td style="padding:8px 12px;color:#c9d1d9;">TCP Listener — monitors all incoming connections</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #30363d;">
+                            <td style="padding:8px 12px;color:#58a6ff;font-weight:600;">Port 3000</td>
+                            <td style="padding:8px 12px;color:#c9d1d9;">Admin Dashboard — login at http://localhost:3000</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #30363d;">
+                            <td style="padding:8px 12px;color:#58a6ff;font-weight:600;">Port 8080</td>
+                            <td style="padding:8px 12px;color:#c9d1d9;">Your Protected Website</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px 12px;color:#58a6ff;font-weight:600;">Port 8082</td>
+                            <td style="padding:8px 12px;color:#c9d1d9;">Web Monitor Proxy — monitor any external URL through TCP detection</td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Admin Management Tab ── -->
+    <div class="tab-content hidden" id="tab-admin">
+
+        <!-- Backup & Restore -->
+        <div class="panel" style="margin-bottom:20px;">
+            <div class="panel__header">
+                <h2 class="panel__title">💾 Database Backup & Restore</h2>
+                <span style="font-size:12px;color:#8b949e">Export all MongoDB data to JSON or restore from a backup</span>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+                <button onclick="downloadBackup(event)" style="background:#238636;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;">⬇️ Download Backup</button>
+                <label class="superadmin-only" style="background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;margin:0;">
+                    ⬆️ Restore Backup
+                    <input type="file" accept=".json" onchange="restoreBackup(event)" style="display:none;" />
+                </label>
+            </div>
+            <div id="backupMsg" style="font-size:13px;color:#3fb950;display:none;margin-bottom:16px;"></div>
+            <h3 style="color:#8b949e;font-size:13px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Backup History</h3>
+            <div id="backupHistory" style="font-size:13px;color:#8b949e;">Loading...</div>
+        </div>
+
+        <!-- Admin User Management -->
+        <div class="panel" style="margin-bottom:20px;">
+            <div class="panel__header">
+                <h2 class="panel__title">👥 Admin User Management</h2>
+                <span style="font-size:12px;color:#8b949e">Add, remove or change passwords for admin accounts</span>
+            </div>
+            <div id="adminUserList" style="margin-bottom:20px;"></div>
+
+            <!-- Add new admin -->
+            <h3 style="color:#8b949e;font-size:13px;font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;">Add New Admin</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <div>
+                    <label style="display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;">Username</label>
+                    <input id="newAdminUser" type="text" placeholder="Username" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;width:160px;" />
+                </div>
+                <div>
+                    <label style="display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;">Password</label>
+                    <input id="newAdminPass" type="password" placeholder="Password" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;width:160px;" />
+                </div>
+                <div>
+                    <label style="display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;">Role</label>
+                    <select id="newAdminRole" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;">
+                        <option value="admin">Admin</option>
+                        <option value="superadmin" class="superadmin-only">Super Admin</option>
+                    </select>
+                </div>
+                <button onclick="addAdmin()" style="background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;">Add Admin</button>
+            </div>
+            <div id="adminMsg" style="font-size:13px;margin-top:10px;display:none;"></div>
+        </div>
+
+        <!-- Change Password — Super Admin only -->
+        <div class="panel superadmin-only">
+            <div class="panel__header">
+                <h2 class="panel__title">🔑 Change Password</h2>
+                <span style="font-size:12px;color:#8b949e">Change the password for any admin account</span>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <div>
+                    <label style="display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;">Username</label>
+                    <input id="chgPassUser" type="text" placeholder="Username" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;width:160px;" />
+                </div>
+                <div>
+                    <label style="display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;">New Password</label>
+                    <input id="chgPassNew" type="password" placeholder="New password" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;width:160px;" />
+                </div>
+                <button onclick="changeAdminPassword()" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;">Update Password</button>
+            </div>
+            <div id="chgPassMsg" style="font-size:13px;margin-top:10px;display:none;"></div>
+        </div>
+    </div>
+
+    <section class="panel panel--breakdown">
+        <div class="panel__header">
+            <h2 class="panel__title">📊 Traffic Classification Breakdown</h2>
+        </div>
+        <div class="breakdown-grid">
+            <div class="breakdown-item">
+                <div class="breakdown-item__label">NORMAL</div>
+                <div class="breakdown-item__count green" id="bdNormal">0</div>
+                <div class="breakdown-item__bar"><div class="breakdown-item__fill green" id="bdNormalBar" style="width:0%"></div></div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-item__label">SUSPICIOUS</div>
+                <div class="breakdown-item__count orange" id="bdSuspicious">0</div>
+                <div class="breakdown-item__bar"><div class="breakdown-item__fill orange" id="bdSuspiciousBar" style="width:0%"></div></div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-item__label">MALICIOUS</div>
+                <div class="breakdown-item__count red" id="bdMalicious">0</div>
+                <div class="breakdown-item__bar"><div class="breakdown-item__fill red" id="bdMaliciousBar" style="width:0%"></div></div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="footer">
+    TCP Ping Detection — Unique Semi-Supervised Learning &nbsp;|&nbsp; IT Project 700 &nbsp;|&nbsp; Richfield &nbsp;|&nbsp; 2026
+</footer>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/dashboard.js"></script>
+<script>
+// ── Web Monitor Tab ──────────────────────────────────────────────────────
+async function loadProxyURL() {
+    try {
+        const res  = await fetch('/api/proxy-url', { headers: { 'x-auth-token': localStorage.getItem('adminToken') } });
+        const data = await res.json();
+        document.getElementById('currentMonitoredURL').textContent = data.url;
+    } catch (e) {}
+}
+
+async function setMonitoredURL() {
+    const input = document.getElementById('urlInput').value.trim();
+    if (!input) return;
+    await applyURL(input);
+    document.getElementById('urlInput').value = '';
+}
+
+async function quickSetURL(u) {
+    await applyURL(u);
+}
+
+async function applyURL(u) {
+    const statusEl = document.getElementById('proxyStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.background = '#161b22';
+    statusEl.style.border = '1px solid #30363d';
+    statusEl.style.color = '#c9d1d9';
+    statusEl.textContent = '⏳ Updating monitored URL...';
+    try {
+        const res  = await fetch('/api/proxy-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('adminToken') },
+            body: JSON.stringify({ url: u })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('currentMonitoredURL').textContent = data.url;
+            statusEl.style.background = 'rgba(63,185,80,0.1)';
+            statusEl.style.border = '1px solid #3fb950';
+            statusEl.style.color = '#3fb950';
+            statusEl.textContent = '✅ Now monitoring: ' + data.url + ' — open http://localhost:8082 to see it';
+        } else {
+            statusEl.style.background = 'rgba(248,81,73,0.1)';
+            statusEl.style.border = '1px solid #f85149';
+            statusEl.style.color = '#f85149';
+            statusEl.textContent = '❌ Error: ' + (data.error || 'Unknown error');
+        }
+    } catch (e) {
+        statusEl.style.background = 'rgba(248,81,73,0.1)';
+        statusEl.style.border = '1px solid #f85149';
+        statusEl.style.color = '#f85149';
+        statusEl.textContent = '❌ Could not connect to server';
+    }
+}
+
+function handleURLDrop(event) {
+    event.preventDefault();
+    const dropZone = document.getElementById('urlDropZone');
+    dropZone.style.borderColor = '#30363d';
+    dropZone.style.background  = 'transparent';
+    // Try to get URL from dragged text or link
+    const text = event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('text/uri-list') || '';
+    if (text) {
+        document.getElementById('urlInput').value = text.trim();
+        applyURL(text.trim());
+    }
+}
+
+// Load current URL when tab opens
+document.addEventListener('DOMContentLoaded', () => {
+    loadProxyURL();
+});
+
+// Update when server broadcasts a change
+if (typeof socket !== 'undefined') {
+    socket.on('proxy-url-changed', (data) => {
+        document.getElementById('currentMonitoredURL').textContent = data.url;
+    });
+}
+</script>
+<script>
+// ── Ghost IPs Tab ────────────────────────────────────────────────────────────
+async function loadGhostClusters() {
+    try {
+        const res      = await fetch('/api/ghost-clusters', { headers: { 'x-auth-token': localStorage.getItem('adminToken') } });
+        const clusters = await res.json();
+        renderGhostTable(clusters);
+    } catch (e) {
+        document.getElementById('ghostTable').innerHTML = '<tr><td colspan="9" class="empty">Failed to load ghost clusters.</td></tr>';
+    }
+}
+
+function renderGhostTable(clusters) {
+    const tbody = document.getElementById('ghostTable');
+    if (!clusters || clusters.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">No ghost IP clusters detected yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = clusters.map(c => {
+        const statusBadge = c.status === 'BLOCKED'
+            ? '<span style="background:rgba(248,81,73,0.15);color:#f85149;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">BLOCKED</span>'
+            : '<span style="background:rgba(63,185,80,0.15);color:#3fb950;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">ACTIVE</span>';
+        const ipList = (c.ips || []).map(ip =>
+            `<span style="font-family:monospace;background:#21253a;padding:2px 7px;border-radius:4px;margin:2px;display:inline-block;font-size:12px;color:#e2e8f0;">${esc(ip)}</span>`
+        ).join('');
+        const firstSeen = c.firstSeen ? new Date(c.firstSeen).toLocaleString('en-ZA') : '—';
+        const lastSeen  = c.lastSeen  ? new Date(c.lastSeen).toLocaleString('en-ZA')  : '—';
+        return `<tr>
+            <td><span style="font-family:monospace;color:#58a6ff;font-size:12px;">${c.clusterId}</span></td>
+            <td style="max-width:300px;">${ipList}</td>
+            <td style="text-align:center;font-weight:700;color:${c.ipCount >= 5 ? '#f85149' : '#f0883e'};">${c.ipCount}</td>
+            <td>${esc(c.country) || '—'}</td>
+            <td>${statusBadge}</td>
+            <td style="font-size:12px;color:#8b949e;">${firstSeen}</td>
+            <td style="font-size:12px;color:#8b949e;">${lastSeen}</td>
+            <td style="font-size:12px;color:#8b949e;max-width:200px;">${esc(c.reason) || '—'}</td>
+            <td>
+                <button onclick="dismissGhostCluster('${esc(c.clusterId)}', this)"
+                    style="background:#21262d;color:#f0883e;border:1px solid #f0883e;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">
+                    Dismiss
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function dismissGhostCluster(clusterId, btn) {
+    if (!confirm('Unblock all IPs in this ghost cluster and dismiss it?')) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res  = await fetch(`/api/ghost-clusters/${encodeURIComponent(clusterId)}`, {
+            method: 'DELETE',
+            headers: { 'x-auth-token': localStorage.getItem('adminToken') }
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadGhostClusters(); // refresh table
+        } else {
+            alert('Failed to dismiss cluster: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Dismiss';
+        }
+    } catch (e) {
+        alert('Could not connect to server.');
+        btn.disabled = false;
+        btn.textContent = 'Dismiss';
+    }
+}
+
+// ── Reports Tab ──────────────────────────────────────────────────────────────
+let reportData = null;
+
+async function loadReportData() {
+    document.getElementById('reportPreview').innerHTML = '<div style="color:#58a6ff;padding:40px;text-align:center;">⏳ Loading data from MongoDB...</div>';
+    try {
+        const res = await fetch('/api/report', { headers: { 'x-auth-token': localStorage.getItem('adminToken') } });
+        reportData = await res.json();
+        document.getElementById('reportPreview').innerHTML = `
+            <div style="color:#3fb950;font-size:15px;font-weight:600;">✅ Data loaded — ${reportData.generatedAt}</div>
+            <div style="color:#8b949e;margin-top:8px;font-size:13px;">
+                ${reportData.stats.totalPings} total pings &nbsp;|&nbsp;
+                ${reportData.blockedIPs.length} blocked IPs &nbsp;|&nbsp;
+                ${reportData.ghostClusters.length} ghost clusters &nbsp;|&nbsp;
+                ${reportData.geoPatterns.length} countries
+            </div>
+            <div style="color:#58a6ff;margin-top:16px;font-size:13px;">Select a report button above to preview and print.</div>`;
+    } catch (e) {
+        document.getElementById('reportPreview').innerHTML = '<div style="color:#f85149;padding:40px;">Failed to load report data.</div>';
+    }
+}
+
+function printReport(type) {
+    if (!reportData) { alert('Please wait for data to load first.'); return; }
+    const win = window.open('', '_blank');
+    win.document.write(buildReportHTML(type));
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 800);
+}
+
+function buildReportHTML(type) {
+    const d = reportData;
+    const ts = d.generatedAt;
+    const css = `
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:13px; }
+        .cover { background:linear-gradient(135deg,#0d1117 0%,#161b22 100%); color:#fff; padding:48px 56px 40px; }
+        .cover-logo { font-size:36px; margin-bottom:8px; }
+        .cover-title { font-size:28px; font-weight:800; color:#58a6ff; margin-bottom:4px; }
+        .cover-sub { font-size:14px; color:#8b949e; margin-bottom:24px; }
+        .cover-meta { display:flex; gap:32px; flex-wrap:wrap; }
+        .cover-meta-item { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 20px; }
+        .cover-meta-item .label { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+        .cover-meta-item .value { font-size:18px; font-weight:700; color:#fff; }
+        .body { padding:32px 56px; }
+        .section { margin-bottom:32px; page-break-inside:avoid; }
+        .section-title { font-size:16px; font-weight:700; color:#1f6feb; border-bottom:2px solid #1f6feb; padding-bottom:6px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px; }
+        .stat-box { background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:14px 16px; text-align:center; }
+        .stat-box .n { font-size:24px; font-weight:800; color:#1f6feb; }
+        .stat-box .l { font-size:11px; color:#57606a; margin-top:2px; text-transform:uppercase; letter-spacing:0.5px; }
+        .stat-box.red .n { color:#cf222e; }
+        .stat-box.orange .n { color:#bc4c00; }
+        .stat-box.green .n { color:#1a7f37; }
+        .stat-box.purple .n { color:#6e40c9; }
+        table { width:100%; border-collapse:collapse; font-size:12px; }
+        th { background:#f6f8fa; border:1px solid #d0d7de; padding:8px 10px; text-align:left; font-weight:600; color:#24292f; }
+        td { border:1px solid #d0d7de; padding:7px 10px; color:#24292f; }
+        tr:nth-child(even) td { background:#f6f8fa; }
+        .badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+        .badge-red { background:#ffebe9; color:#cf222e; }
+        .badge-orange { background:#fff1e5; color:#bc4c00; }
+        .badge-green { background:#dafbe1; color:#1a7f37; }
+        .badge-blue { background:#ddf4ff; color:#0550ae; }
+        .badge-purple { background:#fbefff; color:#6e40c9; }
+        .footer-bar { background:#f6f8fa; border-top:1px solid #d0d7de; padding:14px 56px; font-size:11px; color:#57606a; display:flex; justify-content:space-between; margin-top:32px; }
+        @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .cover { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    `;
+
+    const header = (icon, title, subtitle) => `
+        <div class="cover">
+            <div class="cover-logo">${icon}</div>
+            <div class="cover-title">TCP Ping Detection System</div>
+            <div class="cover-sub">IT Project 700 — Richfield Graduate Institute of Technology | 2026</div>
+            <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;">${title}</div>
+            <div style="font-size:13px;color:#8b949e;margin-bottom:20px;">${subtitle}</div>
+            <div class="cover-meta">
+                <div class="cover-meta-item"><div class="label">Generated</div><div class="value" style="font-size:14px;">${ts}</div></div>
+                <div class="cover-meta-item"><div class="label">Total Pings</div><div class="value">${d.stats.totalPings}</div></div>
+                <div class="cover-meta-item"><div class="label">Blocked IPs</div><div class="value">${d.stats.blockedCount}</div></div>
+                <div class="cover-meta-item"><div class="label">Ghost Clusters</div><div class="value">${d.stats.ghostClusters}</div></div>
+            </div>
+        </div>`;
+
+    const footer = () => `<div class="footer-bar"><span>TCP Ping Detection System — IT Project 700 | Richfield Graduate Institute of Technology</span><span>Generated: ${ts}</span></div>`;
+
+    const trafficSection = () => `
+        <div class="section">
+            <div class="section-title">📊 Traffic Summary</div>
+            <div class="stats-grid">
+                <div class="stat-box"><div class="n">${d.stats.totalPings}</div><div class="l">Total Pings</div></div>
+                <div class="stat-box"><div class="n">${d.stats.pingsLast24h}</div><div class="l">Last 24 Hours</div></div>
+                <div class="stat-box"><div class="n">${d.stats.pingsLast7d}</div><div class="l">Last 7 Days</div></div>
+                <div class="stat-box"><div class="n">${d.stats.uniqueCountries}</div><div class="l">Countries</div></div>
+                <div class="stat-box green"><div class="n">${d.stats.normalCount}</div><div class="l">Normal</div></div>
+                <div class="stat-box orange"><div class="n">${d.stats.suspiciousCount}</div><div class="l">Suspicious</div></div>
+                <div class="stat-box red"><div class="n">${d.stats.maliciousCount}</div><div class="l">Malicious</div></div>
+                <div class="stat-box"><div class="n">${d.stats.botCount}</div><div class="l">Bots Detected</div></div>
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">🌍 Geographic Breakdown</div>
+            <table>
+                <thead><tr><th>Country</th><th>Visit Count</th><th>Normal Count</th><th>Risk Score</th><th>Trusted</th><th>Last Seen</th></tr></thead>
+                <tbody>${d.geoPatterns.map(g=>`<tr>
+                    <td><strong>${esc(g.country)}</strong></td>
+                    <td>${g.visitCount}</td>
+                    <td>${g.normalCount}</td>
+                    <td><span class="badge ${g.riskScore>70?'badge-red':g.riskScore>40?'badge-orange':'badge-green'}">${g.riskScore}</span></td>
+                    <td>${g.trusted?'<span class="badge badge-green">✓ Trusted</span>':'—'}</td>
+                    <td style="font-size:11px;color:#57606a;">${new Date(g.lastSeen).toLocaleString('en-ZA')}</td>
+                </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#57606a;">No data</td></tr>'}</tbody>
+            </table>
+        </div>
+        <div class="section">
+            <div class="section-title">🕐 Hourly Traffic Patterns</div>
+            <table>
+                <thead><tr><th>Hour</th><th>Avg Pings</th><th>Max Pings</th><th>Threshold</th><th>Sample Count</th><th>Top Countries</th></tr></thead>
+                <tbody>${d.trafficPatterns.map(p=>`<tr>
+                    <td><strong>${String(p.hour).padStart(2,'0')}:00</strong></td>
+                    <td>${p.avgPings}</td><td>${p.maxPings}</td>
+                    <td>${p.threshold}</td><td>${p.sampleCount}</td>
+                    <td style="font-size:11px;">${(p.topCountries||[]).join(', ')||'—'}</td>
+                </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#57606a;">No data</td></tr>'}</tbody>
+            </table>
+        </div>`;
+
+    const blockedSection = () => `
+        <div class="section">
+            <div class="section-title">🚫 Blocked IPs (${d.blockedIPs.length})</div>
+            <table>
+                <thead><tr><th>#</th><th>IP Address</th><th>Reason</th><th>Blocked At</th><th>Expires At</th></tr></thead>
+                <tbody>${d.blockedIPs.length===0?'<tr><td colspan="5" style="text-align:center;color:#57606a;">No blocked IPs</td></tr>':d.blockedIPs.map((b,i)=>`<tr>
+                    <td>${i+1}</td>
+                    <td><strong style="font-family:monospace;">${esc(b.ip)}</strong></td>
+                    <td>${esc(b.reason)}</td>
+                    <td style="font-size:11px;">${new Date(b.blockedAt).toLocaleString('en-ZA')}</td>
+                    <td style="font-size:11px;">${new Date(b.expiresAt).getFullYear() >= 9999 ? 'Never — until unblocked' : new Date(b.expiresAt).toLocaleString('en-ZA')}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>`;
+
+    const ghostSection = () => `
+        <div class="section">
+            <div class="section-title">👻 Ghost IP Clusters (${d.ghostClusters.length})</div>
+            <table>
+                <thead><tr><th>Cluster ID</th><th>Linked IPs</th><th>IP Count</th><th>Country</th><th>Status</th><th>First Seen</th><th>Last Seen</th><th>Reason</th></tr></thead>
+                <tbody>${d.ghostClusters.length===0?'<tr><td colspan="8" style="text-align:center;color:#57606a;">No ghost clusters detected</td></tr>':d.ghostClusters.map(c=>`<tr>
+                    <td><span style="font-family:monospace;font-size:11px;">${c.clusterId}</span></td>
+                    <td style="font-size:11px;">${esc((c.ips||[]).join(', '))}</td>
+                    <td style="text-align:center;font-weight:700;">${c.ipCount}</td>
+                    <td>${esc(c.country)||'—'}</td>
+                    <td><span class="badge ${c.status==='BLOCKED'?'badge-red':'badge-green'}">${c.status}</span></td>
+                    <td style="font-size:11px;">${new Date(c.firstSeen).toLocaleString('en-ZA')}</td>
+                    <td style="font-size:11px;">${new Date(c.lastSeen).toLocaleString('en-ZA')}</td>
+                    <td style="font-size:11px;">${esc(c.reason)||'—'}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>`;
+
+    const securitySection = () => `
+        <div class="section">
+            <div class="section-title">🚨 Recent Alerts (${d.alerts.length})</div>
+            <table>
+                <thead><tr><th>Time</th><th>IP</th><th>Type</th><th>Message</th><th>Read</th></tr></thead>
+                <tbody>${d.alerts.length===0?'<tr><td colspan="5" style="text-align:center;color:#57606a;">No alerts</td></tr>':d.alerts.map(a=>`<tr>
+                    <td style="font-size:11px;">${new Date(a.time).toLocaleString('en-ZA')}</td>
+                    <td><span style="font-family:monospace;">${esc(a.ip)}</span></td>
+                    <td><span class="badge ${a.type==='MALICIOUS'?'badge-red':a.type==='SUSPICIOUS'?'badge-orange':a.type==='GHOST_IP'?'badge-purple':'badge-blue'}">${a.type}</span></td>
+                    <td style="font-size:11px;">${esc(a.message)}</td>
+                    <td>${a.read?'✓':'—'}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>
+        <div class="section">
+            <div class="section-title">⭐ IP Reputation Scores (Bottom 30)</div>
+            <table>
+                <thead><tr><th>IP</th><th>Score</th><th>Total Pings</th><th>Normal</th><th>Suspicious</th><th>Malicious</th><th>Country</th><th>Trusted</th><th>Last Seen</th></tr></thead>
+                <tbody>${d.reputations.length===0?'<tr><td colspan="9" style="text-align:center;color:#57606a;">No reputation data</td></tr>':d.reputations.map(r=>`<tr>
+                    <td><span style="font-family:monospace;">${esc(r.ip)}</span></td>
+                    <td><span class="badge ${r.score<=20?'badge-red':r.score<=50?'badge-orange':'badge-green'}">${r.score}</span></td>
+                    <td>${r.totalPings}</td><td>${r.normalPings}</td><td>${r.suspiciousPings}</td><td>${r.maliciousPings}</td>
+                    <td>${esc(r.country)||'—'}</td>
+                    <td>${r.trusted?'<span class="badge badge-green">✓</span>':'—'}</td>
+                    <td style="font-size:11px;">${new Date(r.lastSeen).toLocaleString('en-ZA')}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>`;
+
+    let body = '';
+    let title = '', subtitle = '', icon = '';
+
+    if (type === 'traffic') {
+        title = 'Traffic Summary Report'; subtitle = 'Network traffic analysis, geographic breakdown, and hourly patterns'; icon = '📊';
+        body = trafficSection();
+    } else if (type === 'blocked') {
+        title = 'Blocked IPs Report'; subtitle = 'All currently blocked IP addresses and block reasons'; icon = '🚫';
+        body = blockedSection();
+    } else if (type === 'ghost') {
+        title = 'Ghost IP Clusters Report'; subtitle = 'Detected IP-hopping evasion clusters'; icon = '👻';
+        body = ghostSection();
+    } else if (type === 'security') {
+        title = 'Full Security Report'; subtitle = 'Complete security overview — alerts, reputation scores, and threat analysis'; icon = '🛡️';
+        body = securitySection() + blockedSection() + ghostSection();
+    } else if (type === 'all') {
+        title = 'Complete System Report'; subtitle = 'All reports — traffic, blocked IPs, ghost clusters, and full security analysis'; icon = '🖨️';
+        body = trafficSection() + blockedSection() + ghostSection() + securitySection();
+    }
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TCP Report — ${title}</title><style>${css}</style></head><body>${header(icon,title,subtitle)}<div class="body">${body}</div>${footer()}</body></html>`;
+}
+
+// Live socket event — new ghost cluster detected
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for socket to be ready (it's initialized in dashboard.js)
+    const waitForSocket = setInterval(() => {
+        if (typeof socket !== 'undefined') {
+            clearInterval(waitForSocket);
+            socket.on('ghost-ip-detected', (data) => {
+                // Update stat card (only a brand-new cluster adds to the count)
+                const el = document.getElementById('statGhostClusters');
+                if (el && data.isNew) el.textContent = parseInt(el.textContent || '0') + 1;
+                // Refresh table if tab is open
+                if (document.getElementById('tab-ghost') && !document.getElementById('tab-ghost').classList.contains('hidden')) {
+                    loadGhostClusters();
+                }
+                // Show alert banner
+                if (typeof showBanner === 'function') {
+                    showBanner({ type: 'GHOST_IP', message: 'Ghost IP cluster detected! ' + data.ipCount + ' IPs linked by ' + data.signal });
+                }
+            });
+        }
+    }, 500);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// ADMIN PANEL FUNCTIONS
+// ══════════════════════════════════════════════════════════════════════════
+const TOKEN = () => localStorage.getItem('adminToken');
+
+async function loadAdminPanel() {
+    await loadAdminUsers();
+    await loadBackupHistory();
+}
+
+// ── Admin Users ────────────────────────────────────────────────────────────
+async function loadAdminUsers() {
+    try {
+        const res   = await fetch('/api/admins', { headers: { 'x-auth-token': TOKEN() } });
+        const admins = await res.json();
+        const me    = (await (await fetch('/api/session', { headers: { 'x-auth-token': TOKEN() } })).json()).username;
+        const html  = admins.map(a => `
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;margin-bottom:8px;">
+                <span style="font-size:20px;">${a.role === 'superadmin' ? '👑' : '👤'}</span>
+                <div style="flex:1;">
+                    <div style="color:#c9d1d9;font-size:14px;font-weight:600;">${esc(a.username)}</div>
+                    <div style="color:#8b949e;font-size:12px;">${a.role} · Created ${new Date(a.createdAt).toLocaleDateString('en-ZA')} · Last login: ${a.lastLogin ? new Date(a.lastLogin).toLocaleString('en-ZA') : 'Never'}</div>
+                </div>
+                ${a.username !== me
+                    ? (localStorage.getItem('adminRole') === 'superadmin'
+                        ? `<button onclick="deleteAdmin('${esc(a.username)}')" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Remove</button>`
+                        : '')
+                    : '<span style="color:#3fb950;font-size:12px;">You</span>'}
+            </div>`).join('');
+        document.getElementById('adminUserList').innerHTML = html || '<p style="color:#8b949e;font-size:13px;">No admins found.</p>';
+    } catch(e) { document.getElementById('adminUserList').innerHTML = '<p style="color:#f85149;font-size:13px;">Failed to load admins.</p>'; }
+}
+
+async function addAdmin() {
+    const username = document.getElementById('newAdminUser').value.trim();
+    const password = document.getElementById('newAdminPass').value;
+    const role     = document.getElementById('newAdminRole').value;
+    const msg      = document.getElementById('adminMsg');
+    msg.style.display = 'none';
+    if (!username || !password) { showAdminMsg('adminMsg', 'Username and password required.', false); return; }
+    const res  = await fetch('/api/admins', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': TOKEN() }, body: JSON.stringify({ username, password, role }) });
+    const data = await res.json();
+    if (data.success) {
+        showAdminMsg('adminMsg', `✅ Admin "${username}" added.`, true);
+        document.getElementById('newAdminUser').value = '';
+        document.getElementById('newAdminPass').value = '';
+        await loadAdminUsers();
+    } else {
+        showAdminMsg('adminMsg', `❌ ${data.error}`, false);
+    }
+}
+
+async function deleteAdmin(username) {
+    if (!confirm(`Remove admin "${username}"?`)) return;
+    const res  = await fetch(`/api/admins/${encodeURIComponent(username)}`, { method: 'DELETE', headers: { 'x-auth-token': TOKEN() } });
+    const data = await res.json();
+    if (data.success) { await loadAdminUsers(); }
+    else { showAdminMsg('adminMsg', `❌ ${data.error}`, false); }
+}
+
+async function changeAdminPassword() {
+    const username    = document.getElementById('chgPassUser').value.trim();
+    const newPassword = document.getElementById('chgPassNew').value;
+    if (!username || !newPassword) { showAdminMsg('chgPassMsg', 'Fill in both fields.', false); return; }
+    const res  = await fetch(`/api/admins/${encodeURIComponent(username)}/password`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': TOKEN() }, body: JSON.stringify({ newPassword }) });
+    const data = await res.json();
+    showAdminMsg('chgPassMsg', data.success ? `✅ Password updated for "${username}".` : `❌ ${data.error}`, data.success);
+    if (data.success) { document.getElementById('chgPassUser').value = ''; document.getElementById('chgPassNew').value = ''; }
+}
+
+function showAdminMsg(id, text, ok) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.style.color = ok ? '#3fb950' : '#f85149';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// ── Backup & Restore ───────────────────────────────────────────────────────
+async function downloadBackup(evt) {
+    const btn = (evt || window.event).target;
+    btn.textContent = '⏳ Creating backup...';
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/backup', { method: 'POST', headers: { 'x-auth-token': TOKEN() } });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+        const blob     = await res.blob();
+        const cd       = res.headers.get('Content-Disposition') || '';
+        const fname    = cd.match(/filename="([^"]+)"/)?.[1] || 'tcp_backup.json';
+        const url      = URL.createObjectURL(blob);
+        const a        = document.createElement('a');
+        a.href = url; a.download = fname; a.click();
+        URL.revokeObjectURL(url);
+        const bMsg = document.getElementById('backupMsg');
+        bMsg.textContent = `✅ Backup downloaded: ${fname}`;
+        bMsg.style.color = '#3fb950';
+        bMsg.style.display = 'block';
+        setTimeout(() => { bMsg.style.display = 'none'; }, 6000);
+        await loadBackupHistory();
+    } catch(e) {
+        alert('Backup failed: ' + e.message);
+    } finally {
+        btn.textContent = '⬇️ Download Backup';
+        btn.disabled = false;
+    }
+}
+
+async function restoreBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!confirm(`Restore from "${file.name}"? This will merge records into the database.`)) return;
+    try {
+        const text   = await file.text();
+        const backup = JSON.parse(text);
+        const res    = await fetch('/api/restore', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': TOKEN() }, body: JSON.stringify({ backup }) });
+        const data   = await res.json();
+        const bMsg   = document.getElementById('backupMsg');
+        if (data.success) {
+            bMsg.textContent = `✅ Restore complete — ${data.restored} records merged${data.failed ? ` (${data.failed} skipped)` : ''}.`;
+            bMsg.style.color = '#3fb950';
+        } else {
+            bMsg.textContent = `❌ Restore failed: ${data.error}`;
+            bMsg.style.color = '#f85149';
+        }
+        bMsg.style.display = 'block';
+        setTimeout(() => { bMsg.style.display = 'none'; }, 7000);
+    } catch(e) { alert('Restore failed: ' + e.message); }
+    event.target.value = '';
+}
+
+async function loadBackupHistory() {
+    try {
+        const res  = await fetch('/api/backup/history', { headers: { 'x-auth-token': TOKEN() } });
+        const logs = await res.json();
+        const el   = document.getElementById('backupHistory');
+        if (!logs.length) { el.innerHTML = '<span style="color:#8b949e;font-size:13px;">No backups yet.</span>'; return; }
+        el.innerHTML = logs.map(l => `
+            <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;margin-bottom:6px;">
+                <span style="font-size:18px;">📦</span>
+                <div style="flex:1;">
+                    <div style="color:#c9d1d9;font-size:13px;font-weight:600;">${l.filename}</div>
+                    <div style="color:#8b949e;font-size:12px;">${new Date(l.createdAt).toLocaleString('en-ZA')} · by ${l.createdBy} · ${(l.sizeBytes/1024).toFixed(1)} KB</div>
+                </div>
+            </div>`).join('');
+    } catch(e) { document.getElementById('backupHistory').textContent = 'Failed to load history.'; }
+}
+</script>
+</body>
+</html>
