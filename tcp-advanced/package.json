@@ -1,0 +1,16 @@
+{
+  "name": "tcp-advanced",
+  "version": "3.0.0",
+  "description": "Advanced TCP Ping Detection System with Unique Semi-Supervised Learning - IT Project 700",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "mongoose": "^7.3.1",
+    "ml-kmeans": "^3.0.0",
+    "geoip-lite": "^1.4.7"
+  }
+}

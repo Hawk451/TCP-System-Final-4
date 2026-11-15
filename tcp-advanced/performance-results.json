@@ -1,0 +1,30 @@
+{
+  "run": "1fazf",
+  "date": "2026-11-12T08:27:59.773Z",
+  "idle": {
+    "cpuPercent": 0.15,
+    "rssMB": 221.3
+  },
+  "normalTraffic": {
+    "visitsSent": 200,
+    "pagesServed": 200,
+    "pingsLogged": 200,
+    "loggingAccuracyPercent": 100,
+    "cpuPercent": 15.87,
+    "peakRssMB": 237.4
+  },
+  "alertDelivery": {
+    "trials": 20,
+    "alertsReceived": 20,
+    "withinFiveSecondsPercent": 100,
+    "medianMs": 53,
+    "p95Ms": 56,
+    "maxMs": 56
+  },
+  "pageResponse": {
+    "directMedianMs": 5.9,
+    "monitoredMedianMs": 11.2,
+    "addedMedianMs": 5.3,
+    "monitoredAvgMs": 10.4
+  }
+}
